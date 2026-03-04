@@ -1,0 +1,16 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: false
+        public: false
+
+    MugoWeb\ContentItemsManagerBundle\Twig\ContentCountExtension:
+        tags:
+            - { name: twig.extension }
+
+    MugoWeb\ContentItemsManagerBundle\Controller\ContentListController:
+        tags: ['controller.service_arguments']
+
+    MugoWeb\ContentItemsManagerBundle\EventListener\MenuListener:
+        tags:
+            - { name: kernel.event_subscriber }

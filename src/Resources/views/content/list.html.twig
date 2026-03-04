@@ -1,0 +1,173 @@
+{% extends "@ibexadesign/ui/layout.html.twig" %}
+{% trans_default_domain 'ibexa_content' %}
+
+{% block breadcrumbs %}
+    {% include '@ibexadesign/ui/breadcrumbs.html.twig' with { items: [
+        { value: 'breadcrumb.admin'|trans(domain='messages')|desc('Admin') },
+        { url: path('ibexa.content_type_group.list'), value: 'content_type_group.breadcrumb.list'|trans({}, 'ibexa_content_type')|desc('Content types') },
+        { url: group ? path('ibexa.content_type_group.view', { contentTypeGroupId: group.id }) : '#', value: group ? 'content_type_group.breadcrumb.view'|trans({ '%identifier%': group.identifier }, 'ibexa_content_type')|desc(group.identifier) : 'Unknown Group' },
+        { value: (content_type.names['eng-GB'] ?? content_type.identifier)|capitalize ~ ' Content Items' }
+    ]} %}
+{% endblock %}
+
+{% block header %}
+    {% include '@ibexadesign/ui/page_title.html.twig' with {
+        title: 'Content Items: ' ~ (content_type.names['eng-GB'] ?? content_type.identifier)|capitalize
+    } %}
+{% endblock %}
+
+{% block content %}
+
+    <section class="container ibexa-container">
+        <form method="post" action="{{ path('mugo_content_items_bulk_delete', {'contentTypeId': content_type.id}) }}" id="bulk-delete-form" class="ibexa-toggle-btn-state" data-toggle-button-id="#delete-selected-btn">
+            {% set body_rows = [] %}
+            
+            {% for result in pager.currentPageResults %}
+                {% set contentInfo = result.content.contentInfo %}
+
+                {% set body_row_cols = [] %}
+
+                {# Checkbox Column #}
+                {% set col_checkbox %}
+                    <input type="checkbox" name="content_ids[]" value="{{ contentInfo.id }}" class="ibexa-input ibexa-input--checkbox  form-check-input">
+                {% endset %}
+                {% set body_row_cols = body_row_cols|merge([{
+                    has_checkbox: true,
+                    content: col_checkbox,
+                    raw: true,
+                }]) %}
+
+                {# Data Columns #}
+
+                {% set col_name %}
+                    <a href="{{ path('ibexa.content.view', { 'contentId': contentInfo.id, 'locationId': contentInfo.mainLocationId }) }}">
+                        {{ ibexa_content_name(contentInfo) }}
+                    </a>
+                {% endset %}
+
+                {% set col_creator %}
+                    {% include '@ibexadesign/ui/component/user/user.html.twig' with { user: result.content.versionInfo.contentInfo.owner } only %}
+                {% endset %}
+                {% set col_modifier %}
+                    {% include '@ibexadesign/ui/component/user/user.html.twig' with { user: result.content.versionInfo.creator } only %}
+                {% endset %}
+
+                {% set body_row_cols = body_row_cols|merge([
+                    { content: contentInfo.id },
+                    { content: contentInfo.mainLocationId },
+                    { content: col_name },
+                    { content: col_creator },
+                    { content: contentInfo.publishedDate|date('Y-m-d H:i'), class: 'text-nowrap' },
+                    { content: col_modifier },
+                    { content: contentInfo.modificationDate|date('Y-m-d H:i'), class: 'text-nowrap' },
+                    { content: result.hidden ? 'Hidden' : 'Visible' },
+                ]) %}
+
+                {% set body_rows = body_rows|merge([{ cols: body_row_cols }]) %}
+            {% endfor %}
+
+            {% embed '@ibexadesign/ui/component/table/table.html.twig' with {
+                headline: 'List (' ~ pager.nbResults ~ ')',
+                head_cols: [
+                    { has_checkbox: true },
+                    { content: 'Object ID', class: 'text-nowrap' },
+                    { content: 'Location ID', class: 'text-nowrap' },
+                    { content: 'Name' },
+                    { content: 'Creator' },
+                    { content: 'Created' },
+                    { content: 'Modifier' },
+                    { content: 'Modified' },
+                    { content: 'Visibility' },
+                ],
+                body_rows: body_rows,
+            } %}
+                {% block header %}
+                    {% embed '@ibexadesign/ui/component/table/table_header.html.twig' %}
+                        {% block actions %}
+                             {% set modal_data_target = 'delete-content-modal' %}
+                             <button type="button" 
+                                     id="delete-selected-btn" 
+                                     class="btn ibexa-btn ibexa-btn--ghost ibexa-btn--small" 
+                                     disabled
+                                     data-bs-toggle="modal"
+                                     data-bs-target="#{{ modal_data_target }}">
+                                <svg class="ibexa-icon ibexa-icon--small ibexa-icon--trash">
+                                    <use xlink:href="{{ ibexa_icon_path('trash') }}"></use>
+                                </svg>
+                                <span class="ibexa-btn__label">Delete Selected</span>
+                            </button>
+                            
+                            {% include '@ibexadesign/ui/modal/bulk_delete_confirmation.html.twig' with {
+                                'id': modal_data_target,
+                                'message': 'Are you sure you want to send the selected items to Trash?',
+                                'delete_label': 'Send to Trash',
+                                'data_click': '#confirm-delete-btn',
+                            }%}
+                        {% endblock %}
+                    {% endembed %}
+                {% endblock %}
+            {% endembed %}
+            
+            <button type="submit" id="confirm-delete-btn" hidden></button>
+        </form>
+
+        {% if pager.haveToPaginate %}
+            {% include '@ibexadesign/ui/pagination.html.twig' with {
+                'pager': pager,
+                'paginaton_params': {
+                    'routeName': 'mugo_content_items_list',
+                    'routeParams': {'contentTypeId': content_type.id}
+                }
+            } %}
+        {% endif %}
+    </section>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Enhanced script to handle both 'select all' and button state toggling
+            const form = document.getElementById('bulk-delete-form');
+            const deleteBtn = document.getElementById('delete-selected-btn');
+            const confirmBtn = document.getElementById('confirm-delete-btn');
+            const headCheckbox = document.querySelector('.ibexa-table__header-cell-checkbox');
+            headCheckbox.disabled = false;
+            const checkboxes = document.querySelectorAll('input[name="content_ids[]"]');
+
+            function updateButtonState() {
+                const anyChecked = Array.from(checkboxes).some(cb => cb.checked);
+                if (deleteBtn) {
+                    deleteBtn.disabled = !anyChecked;
+                }
+            }
+
+            if (headCheckbox) {
+                headCheckbox.addEventListener('change', function() {
+                    checkboxes.forEach(cb => cb.checked = this.checked);
+                    updateButtonState();
+                });
+            }
+
+            checkboxes.forEach(cb => {
+                cb.addEventListener('change', updateButtonState);
+            });
+            
+            // Handle modal confirmation click
+            // The modal component uses data-click attribute to trigger a click on another element
+            // We need to ensure that linkage works. Ibexa's JS might handle it, but adding a manual handler for safety.
+            const modalTriggerBtn = document.querySelector('.ibexa-modal--send-to-trash .ibexa-btn--trigger');
+            if (modalTriggerBtn) {
+                modalTriggerBtn.addEventListener('click', function() {
+                    const targetSelector = this.getAttribute('data-click');
+                    if (targetSelector) {
+                        const target = document.querySelector(targetSelector);
+                        if (target) {
+                            target.click();
+                        }
+                    }
+                });
+            }
+            
+            // Initial check
+            updateButtonState();
+        });
+    </script>
+{% endblock %}

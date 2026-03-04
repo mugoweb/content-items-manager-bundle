@@ -1,0 +1,11 @@
+mugo_content_items_list:
+    path: /content-items/list/{contentTypeId}
+    controller: MugoWeb\ContentItemsManagerBundle\Controller\ContentListController::listAction
+    methods: [GET]
+    condition: "request.attributes.get('siteaccess') and request.attributes.get('siteaccess').name == 'admin'"
+
+mugo_content_items_bulk_delete:
+    path: /content-items/delete/{contentTypeId}
+    controller: MugoWeb\ContentItemsManagerBundle\Controller\ContentListController::bulkDeleteAction
+    methods: [POST]
+    condition: "request.attributes.get('siteaccess') and request.attributes.get('siteaccess').name == 'admin'"

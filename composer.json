@@ -1,0 +1,22 @@
+{
+    "name": "mugoweb/content-items-manager-bundle",
+    "description": "The bundle to list and trash Content Items of selected ContentType for Ibexa DXP",
+    "type": "symfony-bundle",
+    "license": "GPL-2.0-only",
+    "authors": [
+        {
+            "name": "Mugo Web",
+            "email": "max@mugo.ca"
+        }
+    ],
+    "require": {
+        "php": ">=7.3"
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "autoload": {
+        "psr-4": {
+            "MugoWeb\\ContentItemsManagerBundle\\": "src/"
+        }
+    }
+}
